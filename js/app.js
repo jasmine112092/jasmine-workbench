@@ -258,6 +258,7 @@ function render() {
   else if (route === 'activity') v.innerHTML = viewActivity();
   else if (route === 'classes') v.innerHTML = viewClasses();
   else if (route === 'grade') v.innerHTML = viewGrade();
+  else if (route === 'backup') v.innerHTML = viewBackup();
   renderWidget();
   tickClock();
 }
@@ -655,8 +656,6 @@ function viewCompletion() {
   </div>`;
 }
 
-/* ---------- 重要事件提醒 ---------- */
-/* ---------- 大学来访 · 各校招生官 ---------- */
 /* ---------- 大学来访 · 各校招生官 ---------- */
 // 搜索关键词 & 国家折叠状态
 let visitQuery = '';
@@ -1473,6 +1472,44 @@ function viewAdmission() {
   </div>`;
 }
 
+/* ---------- 数据备份 ---------- */
+function viewBackup() {
+  // 统计各类数据量
+  const stats = [
+    ['📝 每日计划', (STATE.tasks || []).length],
+    ['🎓 学生申请进度', (STATE.students || []).length + ' 名学生'],
+    ['⏰ 申请截止时间', (STATE.deadlines || []).length + ' 条'],
+    ['🏰 大学来访', allVisitSchools().length + ' 所院校'],
+    ['📨 后申请追踪', afterSchools().length + ' 所'],
+    ['🏆 录取情况', admittedSchools().length + ' 份'],
+    ['🎪 社团工作', (STATE.clubs || []).length + ' 个'],
+    ['🎬 学理会活动部', ((STATE.activity||{}).activities||[]).length + ' 条'],
+    ['🏫 班级&学生', (STATE.classes || []).length + ' 个'],
+    ['📅 年级工作', (STATE.grades || []).length + ' 项'],
+  ];
+  const statHtml = stats.map(s => `<div class="bk-stat"><div class="bk-n">${s[1]}</div><div class="bk-t">${s[0]}</div></div>`).join('');
+
+  return `
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--blue-500)"></span>数据备份</div>
+    <p class="hint">你的所有数据都保存在这台设备的浏览器里。请定期导出备份，换设备或清理缓存后，通过「导入」即可完整恢复。</p>
+
+    <div class="bk-stats">${statHtml}</div>
+
+    <div class="bk-actions">
+      <button class="btn pink" data-act="export-data" style="font-size:15px;padding:12px 20px">📤 导出全部数据</button>
+      <button class="btn blue" data-act="import-data" style="font-size:15px;padding:12px 20px">📥 导入数据</button>
+      <input type="file" id="bk-file" accept=".json,application/json" style="display:none"/>
+    </div>
+
+    <div class="bk-tips">
+      <div class="bk-tip"><b>📤 导出：</b>点击后自动下载一个「Jasmine备份-日期.json」文件，请把它存到电脑、网盘或手机里。</div>
+      <div class="bk-tip"><b>📥 导入：</b>点击后选择之前导出的 json 文件，即可恢复全部数据（会覆盖当前设备数据，请确认）。</div>
+      <div class="bk-tip"><b>💡 建议：</b>重要数据每 1–2 周导出一次；换新电脑 / 新手机 / 清理浏览器缓存前，务必先导出。</div>
+    </div>
+  </div>`;
+}
+
 /* ---------- 手机挂件视图 ---------- */
 function renderWidget() {
   const t = todayStr();
@@ -1577,6 +1614,28 @@ document.addEventListener('click', e => {
   if (act === 'toggle-widget') {
     document.body.classList.toggle('widget');
     if (document.body.classList.contains('widget')) renderWidget();
+    return;
+  }
+
+  // 数据备份：导出
+  if (act === 'export-data') {
+    const data = JSON.stringify({ __app: 'jasmine_workbench', version: 1, time: new Date().toISOString(), state: STATE }, null, 2);
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const fname = `Jasmine备份-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}.json`;
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    toast('📤 已导出备份：' + fname);
+    return;
+  }
+  // 数据备份：导入
+  if (act === 'import-data') {
+    const fileInp = document.getElementById('bk-file');
+    if (fileInp) fileInp.click();
     return;
   }
 
@@ -2075,6 +2134,43 @@ document.addEventListener('click', e => {
 
 // 材料状态三态（change 实时保存）
 document.addEventListener('change', e => {
+  // 数据备份：导入文件
+  if (e.target && e.target.id === 'bk-file') {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        let newState = parsed.state || parsed;
+        if (!newState || typeof newState !== 'object') throw new Error('bad');
+        // 兼容：若导出的只有顶层数据对象
+        if (newState.__app === 'jasmine_workbench' && parsed.state) newState = parsed.state;
+        // 校验关键字段，防止导入错误文件
+        if (!newState.tasks && !newState.students && !newState.visits) throw new Error('no-data');
+        // 补充缺失字段，保证兼容
+        if (!Array.isArray(newState.tasks)) newState.tasks = [];
+        if (!Array.isArray(newState.events)) newState.events = [];
+        if (!Array.isArray(newState.students)) newState.students = [];
+        if (!Array.isArray(newState.deadlines)) newState.deadlines = [];
+        if (!Array.isArray(newState.after)) newState.after = [];
+        if (!Array.isArray(newState.clubs)) newState.clubs = [];
+        if (!Array.isArray(newState.visits)) newState.visits = seedVisits();
+        if (!newState.activity) newState.activity = { president: '', members: [], activities: [] };
+        if (!Array.isArray(newState.classes)) newState.classes = [];
+        if (!newState.clubDept) newState.clubDept = { president: '', members: [] };
+        if (!Array.isArray(newState.grades)) newState.grades = [];
+        STATE = newState;
+        save(); render();
+        toast('✅ 数据导入成功，工作台已恢复');
+      } catch (err) {
+        toast('❌ 导入失败：文件格式不正确，请选择正确的备份文件');
+      }
+    };
+    reader.readAsText(file);
+    return;
+  }
   const el = e.target.closest('[data-act="set-mat-status"]');
   if (el) {
     const s = STATE.students.find(x => x.id === el.dataset.sid); if (!s) return;

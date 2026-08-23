@@ -220,6 +220,8 @@ input, textarea, select { font-family: inherit; }
 .btn:hover { background: var(--blue-600); }
 .btn.pink { background: var(--pink-400); }
 .btn.pink:hover { background: var(--pink-500); }
+.btn.blue { background: var(--blue-500); }
+.btn.blue:hover { background: var(--blue-600); }
 .btn.ghost { background: #fff; color: var(--blue-600); border: 1px solid var(--blue-200); box-shadow: none; }
 .btn.block { width: 100%; justify-content: center; margin-top: 12px; }
 .input, .textarea, .select {
@@ -469,6 +471,15 @@ body.widget .widget-view {
 .visit-toggle input { accent-color: var(--purple-500); }
 .visit-dt { display: inline-flex; gap: 6px; align-items: center; }
 .visit-dt .input { max-width: 150px; font-size: 13px; padding: 5px 8px; }
+
+/* ===== 数据备份 ===== */
+.bk-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 6px 0 16px; }
+.bk-stat { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: #FBFDFF; text-align: center; }
+.bk-n { font-size: 18px; font-weight: 800; color: var(--blue-600); }
+.bk-t { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+.bk-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.bk-tips { display: flex; flex-direction: column; gap: 8px; }
+.bk-tip { background: #F6FAFF; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--ink); }
 
 
 /* ===== 后申请追踪 ===== */
