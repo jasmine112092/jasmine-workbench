@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#8FC9F2" />
+  <meta name="description" content="Jasmine的工作台 —— 个人效率工作台（PWA，离线可用）" />
+  <title>Jasmine的工作台</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+<body>
+  <!-- 完整应用 -->
+  <div class="app" id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">J</div>
+        <div>
+          <div class="name" id="brand-name">Jasmine的工作台</div>
+          <div class="sub">个人效率工作台</div>
+        </div>
+      </div>
+      <button class="nav-item active" data-act="nav" data-route="home" draggable="true">
+        <span class="ico">🏠</span><span class="label">首页</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="daily" draggable="true">
+        <span class="ico">📝</span><span class="label">每日计划</span><span class="nav-badge">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="completion" draggable="true">
+        <span class="ico">📊</span><span class="label">完成情况</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="students" draggable="true">
+        <span class="ico">🎓</span><span class="label">申请进度</span><span class="nav-badge">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="after" draggable="true">
+        <span class="ico">📨</span><span class="label">后申请追踪</span><span class="nav-badge" id="badge-after">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="admission" draggable="true">
+        <span class="ico">🏆</span><span class="label">录取情况</span><span class="nav-badge" id="badge-admission">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="deadlines" draggable="true">
+        <span class="ico">⏰</span><span class="label">截止时间</span><span class="nav-badge">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="visits" draggable="true">
+        <span class="ico">🏰</span><span class="label">大学来访</span><span class="nav-badge">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="club" draggable="true">
+        <span class="ico">🎪</span><span class="label">社团工作</span><span class="nav-badge" id="badge-club">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="activity" draggable="true">
+        <span class="ico">🎬</span><span class="label">学理会活动部</span><span class="nav-badge">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="classes" draggable="true">
+        <span class="ico">🏫</span><span class="label">班级&学生</span><span class="nav-badge">0</span>
+      </button>
+      <button class="nav-item" data-act="nav" data-route="grade" draggable="true">
+        <span class="ico">📅</span><span class="label">年级工作</span><span class="nav-badge">0</span>
+      </button>
+      <div class="spacer"></div>
+      <button class="nav-item" data-act="toggle-widget">
+        <span class="ico">📱</span><span class="label">挂件</span>
+      </button>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <h1>Jasmine的工作台</h1>
+        <span class="today-pill" id="today-pill"></span>
+      </div>
+      <div id="view"></div>
+    </main>
+  </div>
+
+  <!-- 手机挂件视图 -->
+  <div class="widget-view" id="widget"></div>
+
+  <script>
+    // 顶部日期
+    (function(){ var d=new Date(); var w='日一二三四五六'[d.getDay()];
+      document.getElementById('today-pill').textContent = d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate()+' 周'+w; })();
+  </script>
+  <script src="./js/visits-data.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

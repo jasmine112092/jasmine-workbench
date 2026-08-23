@@ -1,0 +1,33 @@
+{
+  "name": "Jasmine的工作台",
+  "short_name": "Jasmine",
+  "description": "Jasmine的个人效率工作台：每日计划、任务看板、事件提醒、学生申请进度，离线可用。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F3F8FE",
+  "theme_color": "#8FC9F2",
+  "categories": ["productivity", "education", "personalization"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
