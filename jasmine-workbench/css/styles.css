@@ -614,13 +614,13 @@ body.widget .widget-view {
 .club-add-week { display: flex; gap: 6px; flex: 1; min-width: 180px; }
 .club-add-member .input, .club-add-week .input { flex: 1; font-size: 13px; }
 .club-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-.club-table th, .club-table td { border: 1px solid var(--line); padding: 6px; font-size: 12.5px; text-align: left; }
+.club-table th, .club-table td { border: 1px solid var(--line); padding: 6px 8px; font-size: 12.5px; text-align: left; }
 .club-table th { background: var(--blue-50); color: var(--blue-600); font-weight: 800; white-space: nowrap; }
-.club-th-name { min-width: 95px; }
-.club-week-hd { min-width: 70px; }
+.club-th-name { min-width: 120px; }
+.club-week-hd { min-width: 110px; }
 .club-member td { vertical-align: middle; }
 .club-mname { font-weight: 600; white-space: nowrap; }
-.club-member .mini-btn { width: 18px; height: 18px; font-size: 10px; margin-left: 2px; }
+.club-member .mini-btn { width: 20px; height: 20px; font-size: 11px; margin-left: 4px; }
 .club-hint { color: var(--muted); text-align: center; padding: 12px; font-size: 13px; }
 .club-week-note-row td { vertical-align: top; background: #FFFDF5; }
 .club-note-label { font-weight: 800; color: var(--yellow); font-size: 12px; white-space: nowrap; background: var(--blue-50) !important; }
@@ -630,49 +630,7 @@ body.widget .widget-view {
 .att-sel.normal { background: #E8F8EF; color: var(--green); border-color: #BFE8CE; font-weight: 600; }
 .att-sel.late { background: #FFF3D6; color: var(--yellow); border-color: #F0DCA0; font-weight: 600; }
 .att-sel.absent { background: #FFE3E9; color: var(--red); border-color: #F5C2CC; font-weight: 600; }
-/* 更紧凑的出勤标记按钮（解决列过多导致的拥挤） */
-.att-cell { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: #F8F9FA; color: var(--ink-soft); font-size: 12px; font-weight: 700; cursor: pointer; line-height: 1; }
-.att-cell:empty { padding: 0; width: 28px; }
-.att-cell.normal { background: #E8F8EF; color: var(--green); border-color: #BFE8CE; }
-.att-cell.late { background: #FFF3D6; color: var(--yellow); border-color: #F0DCA0; }
-.att-cell.absent { background: #FFE3E9; color: var(--red); border-color: #F5C2CC; }
-.att-cell:hover { transform: translateY(-1px); box-shadow: 0 2px 0 rgba(0,0,0,.04); }
-.att-cell:focus { outline: none; box-shadow: 0 0 0 2px var(--blue-100); }
 tr.att-absent td { background: #FFF7F9; }
-@media (max-width: 600px) {
-  .att-cell { min-width: 24px; height: 24px; padding: 0 4px; font-size: 11px; }
-  .club-table th, .club-table td { padding: 5px 4px; font-size: 12px; }
-  .club-week-hd { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .club-week-label { width: 46px; }
-  .club-week-del { margin-left: 0; }
-  .club-member-name { width: 54px; }
-  .club-th-name { min-width: 85px; }
-}
-
-/* 周次分页 */
-.club-pager { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.pager-info { font-size: 12px; color: var(--ink-soft); }
-.pager-btn { padding: 3px 10px; font-size: 12px; }
-.pager-btn:disabled { opacity: .4; cursor: not-allowed; }
-/* 表格外壳：若仍超出宽度则允许横向滚动，社员名列固定 */
-.club-table-wrap { max-width: 100%; overflow-x: auto; }
-.club-table-wrap .club-table { min-width: 0; }
-.club-table-wrap th, .club-table-wrap td { white-space: nowrap; }
-
-/* 周次表头可编辑 */
-.club-week-hd { min-width: 70px; vertical-align: middle; }
-.club-week-label { width: 42px; box-sizing: border-box; border: 1px dashed transparent; border-radius: 6px; padding: 3px 1px; font-size: 12.5px; font-weight: 800; color: var(--blue-600); background: transparent; text-align: center; }
-.club-week-label:hover { border-color: var(--line); background: #fff; }
-.club-week-label:focus { outline: none; border-color: var(--blue-400); background: #fff; box-shadow: 0 0 0 2px var(--blue-100); }
-.club-week-del { width: 18px; height: 18px; font-size: 10px; margin-left: 2px; }
-
-/* 社员姓名可编辑 */
-.club-member-name { width: 60px; box-sizing: border-box; border: 1px dashed transparent; border-radius: 6px; padding: 3px 1px; font-size: 12.5px; font-weight: 600; color: var(--ink); background: transparent; }
-.club-member-name:hover { border-color: var(--line); background: #fff; }
-.club-member-name:focus { outline: none; border-color: var(--pink-400); background: #fff; box-shadow: 0 0 0 2px var(--pink-100); }
-
-/* 让出勤单元格可以缩到更窄 */
-.club-table td { text-align: center; }
 
 /* ===== 社团出勤总结看板 ===== */
 .ab-club { margin-bottom: 16px; }

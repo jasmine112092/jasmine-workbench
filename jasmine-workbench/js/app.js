@@ -46,8 +46,6 @@ let calCursor = todayStr();      // 月历游标（默认今天）
 let calSelected = todayStr();    // 月历选中日
 let editingActivity = null;      // 正在编辑的活动 id
 let editingGradeActivity = null; // 正在编辑的年级活动 id
-let clubWeekPage = {};           // 社团周次分页：clubId -> 当前页码(从0开始)
-const CLUB_WEEKS_PER_PAGE = 3;   // 每屏最多显示的周次列数（兼顾桌面与移动端）
 
 function makeSchool(name, progress) {
   return {
@@ -1073,16 +1071,6 @@ function viewDeadlines() {
 
 /* ---------- 社团工作 ---------- */
 const ATT_CLS = { normal: '正常出勤', late: '迟到', absent: '缺勤' };
-const ATT_ABBR = { '': '—', normal: '正', late: '迟', absent: '缺' };
-const ATT_TITLE = { '': '未标记（点击切换）', normal: '正常出勤', late: '迟到', absent: '缺勤' };
-const ATT_ORDER = ['', 'normal', 'late', 'absent'];
-// 周次分页页码
-function clubPage(cid) {
-  const p = clubWeekPage[cid] || 0;
-  const wlen = (STATE.clubs.find(c => c.id === cid)?.weeks || []).length;
-  const maxP = Math.max(0, Math.ceil(wlen / CLUB_WEEKS_PER_PAGE) - 1);
-  return Math.min(p, maxP);
-}
 function clubCard(cl) {
   const weeks = cl.weeks || [];
   const members = cl.members || [];
@@ -1099,60 +1087,44 @@ function clubCard(cl) {
       <input class="input club-input" data-club-field="${f.key}" data-cid="${cl.id}" value="${escapeHtml(cl[f.key] || '')}" placeholder="${f.ph}"/>
     </div>`).join('');
 
-  // ---- 周次分页：每屏最多 CLUB_WEEKS_PER_PAGE 周，横向宽度恒定 ----
-  const totalWeeks = weeks.length;
-  const pageCount = Math.max(1, Math.ceil(totalWeeks / CLUB_WEEKS_PER_PAGE));
-  const page = clubPage(cl.id);
-  const start = page * CLUB_WEEKS_PER_PAGE;
-  const pageWeeks = weeks.slice(start, start + CLUB_WEEKS_PER_PAGE);
-
-  // 周次表头（含编辑/删除小按钮）
-  const weekHeaders = pageWeeks.length
-    ? pageWeeks.map(w => `<th class="club-week-hd">
-        <input class="club-week-label" value="${escapeHtml(w.label || '')}" data-week-label="${cl.id}" data-wid="${w.id}" title="点击修改周次名称" maxlength="20"/>
-        <button class="mini-btn club-week-del" data-act="del-week" data-cid="${cl.id}" data-wid="${w.id}" title="删除该周">✕</button>
-      </th>`).join('')
+  // 周次表头
+  const weekHeaders = weeks.length
+    ? weeks.map(w => `<th class="club-week-hd">${escapeHtml(w.label)}</th>`).join('')
     : '';
-  // 周次表现备注行：仅当页周次
-  const weekNotes = pageWeeks.length
+  // 周次表现备注行：每周一列一个可编辑文本框
+  const weekNotes = weeks.length
     ? `<tr class="club-week-note-row">
         <td class="club-note-label">表现备注</td>
-        ${pageWeeks.map(w => `<td><textarea class="club-week-note" rows="2" placeholder="本周表现…" data-week-note="${cl.id}" data-wid="${w.id}" maxlength="200">${escapeHtml(w.note || '')}</textarea></td>`).join('')}
+        ${weeks.map(w => `<td><textarea class="club-week-note" rows="2" placeholder="记录本周表现（好的/需改进）…" data-week-note="${cl.id}" data-wid="${w.id}" maxlength="200">${escapeHtml(w.note || '')}</textarea></td>`).join('')}
       </tr>`
     : '';
 
-  // 社员行（姓名可点击编辑；出勤下拉）
+  // 社员行
   const rows = members.length
     ? members.map(m => {
-        const cells = pageWeeks.length
-          ? pageWeeks.map(w => {
+        const cells = weeks.length
+          ? weeks.map(w => {
+              // 未标记的默认视为「正常出勤」
               const v = (m.attend && m.attend[w.id]) || 'normal';
-              return `<td><button class="att-cell ${v}" data-act="set-att" data-cid="${cl.id}" data-mid="${m.id}" data-wid="${w.id}" title="${escapeHtml(ATT_TITLE[v] || ATT_TITLE[''])}">${ATT_ABBR[v] || ATT_ABBR['']}</button></td>`;
+              return `<td><select class="att-sel ${v}" data-act="set-att" data-cid="${cl.id}" data-mid="${m.id}" data-wid="${w.id}">
+                <option value="" ${v === '' ? 'selected' : ''}>—</option>
+                <option value="normal" ${v === 'normal' ? 'selected' : ''}>正常出勤</option>
+                <option value="late" ${v === 'late' ? 'selected' : ''}>迟到</option>
+                <option value="absent" ${v === 'absent' ? 'selected' : ''}>缺勤</option>
+              </select></td>`;
             }).join('')
           : `<td class="club-hint">暂无周次</td>`;
         return `<tr class="club-member">
-          <td class="club-mname">
-            <input class="club-member-name" value="${escapeHtml(m.name)}" data-member-name="${cl.id}" data-mid="${m.id}" title="点击修改姓名" maxlength="20"/>
-            <button class="mini-btn" data-act="del-member" data-cid="${cl.id}" data-mid="${m.id}" title="移除社员">✕</button>
-          </td>
+          <td class="club-mname">${escapeHtml(m.name)} <button class="mini-btn" data-act="del-member" data-cid="${cl.id}" data-mid="${m.id}" title="移除社员">✕</button></td>
           ${cells}
         </tr>`;
       }).join('')
-    : `<tr><td class="club-hint" colspan="${(pageWeeks.length || 1) + 1}">还没有添加社员</td></tr>`;
-
-  // 周次分页导航
-  const pager = totalWeeks > CLUB_WEEKS_PER_PAGE
-    ? `<div class="club-pager">
-        <button class="mini-btn pager-btn" data-act="week-page" data-cid="${cl.id}" data-dir="-1" ${page === 0 ? 'disabled' : ''}>‹ 上一页</button>
-        <span class="pager-info">第 ${page + 1} / ${pageCount} 页 · 显示第 ${start + 1}–${Math.min(start + CLUB_WEEKS_PER_PAGE, totalWeeks)} 周（共 ${totalWeeks} 周）</span>
-        <button class="mini-btn pager-btn" data-act="week-page" data-cid="${cl.id}" data-dir="1" ${page >= pageCount - 1 ? 'disabled' : ''}>下一页 ›</button>
-      </div>`
-    : '';
+    : `<tr><td class="club-hint" colspan="${weeks.length + 1 || 2}">还没有添加社员</td></tr>`;
 
   return `<div class="club-card">
     <div class="club-head">
       <span class="club-name">🎪 ${escapeHtml(cl.name || '未命名社团')}</span>
-      <span class="club-meta">${members.length} 名社员 · ${totalWeeks} 周记录</span>
+      <span class="club-meta">${members.length} 名社员 · ${weeks.length} 周记录</span>
       <button class="mini-btn" data-act="del-club" data-cid="${cl.id}" title="删除社团">✕</button>
     </div>
     <div class="club-fields">${fields}</div>
@@ -1166,16 +1138,13 @@ function clubCard(cl) {
         <button class="btn ghost" data-act="add-week" data-cid="${cl.id}">＋周次</button>
       </div>
     </div>
-    ${pager}
-    <div class="club-table-wrap">
-      <table class="club-table">
-        <thead><tr>
-          <th class="club-th-name">社员</th>
-          ${weekHeaders}
-        </tr></thead>
-        <tbody>${rows}${weekNotes}</tbody>
-      </table>
-    </div>
+    <table class="club-table">
+      <thead><tr>
+        <th class="club-th-name">社员</th>
+        ${weekHeaders}
+      </tr></thead>
+      <tbody>${rows}${weekNotes}</tbody>
+    </table>
   </div>`;
 }
 // 社团出勤总结看板：统计每个社员正常/缺勤/迟到次数
@@ -1265,7 +1234,6 @@ function viewClub() {
   ${attendanceBoard(clubs)}
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--pink-400)"></span>我的社团（${clubs.length} 个）</div>
-    <p class="hint">每周出勤点击小按钮即可循环切换（正/迟/缺/未标记）；周次名称、社员姓名可点击直接修改；每屏最多显示 3 周，周次多时可翻页查看，不再横向拥挤。</p>
     ${cards}
     <div class="add-row" style="margin-top:16px">
       <input class="input" id="club-name" placeholder="社团名称" maxlength="30"/>
@@ -2133,27 +2101,6 @@ document.addEventListener('click', e => {
       if (!m.attend) m.attend = {};
       m.attend[week.id] = 'normal';
     });
-    // 跳转到最后一页，方便看到新增的一周
-    const maxP = Math.max(0, Math.ceil(cl.weeks.length / CLUB_WEEKS_PER_PAGE) - 1);
-    clubWeekPage[cl.id] = maxP;
-    save(); render(); return;
-  }
-  if (act === 'del-week') {
-    const cl = (STATE.clubs || []).find(x => x.id === el.dataset.cid); if (!cl) return;
-    const wid = el.dataset.wid;
-    if (!confirm('确定删除「' + ((cl.weeks || []).find(w => w.id === wid)?.label || '该周') + '」的所有出勤记录吗？')) return;
-    // 移除该周及其在所有社员中的出勤数据
-    cl.weeks = (cl.weeks || []).filter(w => w.id !== wid);
-    (cl.members || []).forEach(m => { if (m.attend) delete m.attend[wid]; });
-    save(); render(); return;
-  }
-  if (act === 'week-page') {
-    const cid = el.dataset.cid;
-    const dir = Number(el.dataset.dir);
-    const wlen = ((STATE.clubs || []).find(c => c.id === cid)?.weeks || []).length;
-    const maxP = Math.max(0, Math.ceil(wlen / CLUB_WEEKS_PER_PAGE) - 1);
-    const cur = clubWeekPage[cid] || 0;
-    clubWeekPage[cid] = Math.min(maxP, Math.max(0, cur + dir));
     save(); render(); return;
   }
 
@@ -2376,34 +2323,6 @@ document.addEventListener('click', e => {
     save(); render();
     return;
   }
-  // 社团出勤：点击按钮循环切换状态
-  const att = e.target.closest('[data-act="set-att"]');
-  if (att) {
-    const cl = (STATE.clubs || []).find(x => x.id === att.dataset.cid); if (!cl) return;
-    const m = (cl.members || []).find(x => x.id === att.dataset.mid); if (!m) return;
-    if (!m.attend) m.attend = {};
-    const wid = att.dataset.wid;
-    const cur = m.attend[wid] || '';
-    const next = ATT_ORDER[(ATT_ORDER.indexOf(cur) + 1) % ATT_ORDER.length];
-    m.attend[wid] = next;
-    save();
-    // 就地更新按钮，不整页重渲染
-    att.className = 'att-cell ' + next;
-    att.textContent = ATT_ABBR[next];
-    att.title = ATT_TITLE[next];
-    const tr = att.closest('tr');
-    if (tr) tr.classList.toggle('att-absent', next === 'absent');
-    // 只刷新出勤总结看板
-    const board = document.getElementById('attendance-board');
-    if (board && typeof attendanceBoard === 'function') {
-      const html = attendanceBoard(STATE.clubs || []);
-      const tmp = document.createElement('div');
-      tmp.innerHTML = html;
-      const fresh = tmp.firstElementChild;
-      if (fresh) board.replaceWith(fresh);
-    }
-    return;
-  }
 });
 
 // 材料状态三态（change 实时保存）
@@ -2452,6 +2371,28 @@ document.addEventListener('change', e => {
     const sc = (c.schools || []).find(x => x.id === el.dataset.schid); if (!sc) return;
     const m = (sc.materials || []).find(x => x.id === el.dataset.mid); if (!m) return;
     m.status = el.value; save(); render();
+    return;
+  }
+  // 社团出勤
+  const att = e.target.closest('[data-act="set-att"]');
+  if (att) {
+    const cl = (STATE.clubs || []).find(x => x.id === att.dataset.cid); if (!cl) return;
+    const m = (cl.members || []).find(x => x.id === att.dataset.mid); if (!m) return;
+    if (!m.attend) m.attend = {};
+    m.attend[att.dataset.wid] = att.value;
+    save();
+    // 更新行样式，不整页重渲染避免下拉收起后抖动
+    const tr = att.closest('tr');
+    if (tr) tr.classList.toggle('att-absent', att.value === 'absent');
+    // 只刷新出勤总结看板
+    const board = document.getElementById('attendance-board');
+    if (board && typeof attendanceBoard === 'function') {
+      const html = attendanceBoard(STATE.clubs || []);
+      const tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      const fresh = tmp.firstElementChild;
+      if (fresh) board.replaceWith(fresh);
+    }
     return;
   }
 });
@@ -2541,22 +2482,6 @@ document.addEventListener('input', e => {
     const cl = (STATE.clubs || []).find(x => x.id === weekNote.dataset.weekNote); if (!cl) return;
     const w = (cl.weeks || []).find(x => x.id === weekNote.dataset.wid); if (!w) return;
     w.note = weekNote.value;
-    save();
-  }
-  // 修改周次名称自动保存
-  const weekLabel = e.target.closest('[data-week-label]');
-  if (weekLabel) {
-    const cl = (STATE.clubs || []).find(x => x.id === weekLabel.dataset.weekLabel); if (!cl) return;
-    const w = (cl.weeks || []).find(x => x.id === weekLabel.dataset.wid); if (!w) return;
-    w.label = weekLabel.value;
-    save();
-  }
-  // 修改社员姓名自动保存
-  const memberName = e.target.closest('[data-member-name]');
-  if (memberName) {
-    const cl = (STATE.clubs || []).find(x => x.id === memberName.dataset.memberName); if (!cl) return;
-    const m = (cl.members || []).find(x => x.id === memberName.dataset.mid); if (!m) return;
-    m.name = memberName.value;
     save();
   }
   // 班级学生信息编辑自动保存
