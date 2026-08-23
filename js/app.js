@@ -78,7 +78,7 @@ function defaultState() {
       schools: [makeSchool(c + '·示例院校', 10 + i * 12)]
     }))
   }));
-  return { tasks:  [], events: [], students, deadlines: [], after: [], clubs: [], activity: { president: '', members: [], activities: [] }, classes: [], clubDept: { president: '', members: [] }, navOrder: null, grades: [], visits: [] };
+  return { tasks:  [], events: [], students, deadlines: [], after: [], clubs: [], activity: { president: '', members: [], activities: [] }, classes: [], clubDept: { president: '', members: [] }, navOrder: null, grades: [], visits: [], todos: [] };
 }
 
 function load() {
@@ -99,6 +99,7 @@ function load() {
     if (!Array.isArray(STATE.clubDept.members)) STATE.clubDept.members = [];
     if (!Array.isArray(STATE.grades)) STATE.grades = [];
     if (!Array.isArray(STATE.visits) || (STATE.visits.length === 0 && typeof window !== 'undefined' && window.VISITS_PRESET)) { STATE.visits = seedVisits(); save(); }
+    if (!Array.isArray(STATE.todos)) STATE.todos = [];
     // 兼容旧数据：国家级 materials 迁移到学校级
     STATE.students.forEach(s => (s.countries || []).forEach(c => {
       if (!Array.isArray(c.schools)) {
@@ -229,6 +230,7 @@ function render() {
   // 导航徽标
   const navBadges = {
     daily: secTasks('today').length + secTasks('incomplete').length,
+    todos: (STATE.todos || []).filter(x => !x.done).length,
     students: STATE.students.length,
     deadlines: (STATE.deadlines || []).length,
     visits: (STATE.visits || []).reduce((n, c) => n + (c.schools || []).length, 0),
@@ -248,6 +250,7 @@ function render() {
   const v = $('#view');
   if (route === 'home') v.innerHTML = viewHome();
   else if (route === 'daily') v.innerHTML = viewDaily();
+  else if (route === 'todos') v.innerHTML = viewTodos();
   else if (route === 'completion') v.innerHTML = viewCompletion();
   else if (route === 'students') v.innerHTML = viewStudents();
   else if (route === 'after') v.innerHTML = viewAfter();
@@ -524,6 +527,12 @@ function viewHome() {
     ? visits.slice(0, 4).map(x => `<div class="mini-item"><span class="mk" style="background:var(--yellow)"></span>🏰 ${escapeHtml(x.name)} · ${escapeHtml(x.visitTime || '—')}来访</div>`).join('')
     : '<div class="empty">今天没有大学来访</div>';
 
+  // 今日已完成的待办事项（自动汇总）
+  const todosDoneToday = (STATE.todos || []).filter(x => x.done && x.doneDate === t);
+  const miniTodosDone = todosDoneToday.length
+    ? todosDoneToday.slice(0, 5).map(x => `<div class="mini-item"><span class="mk" style="background:var(--green)"></span><span class="done">✓ ${escapeHtml(x.text)}</span>${x.time ? ` <span class="todo-clock">${escapeHtml(x.time)}</span>` : ''}</div>`).join('')
+    : '<div class="empty">今天还没有完成的待办</div>';
+
   // 班级总览
   const allC = STATE.students.flatMap(s => s.countries.flatMap(c => c.schools || []));
   const avg = allC.length ? Math.round(allC.reduce((a, c) => a + (c.progress || 0), 0) / allC.length) : 0;
@@ -548,6 +557,8 @@ function viewHome() {
         <div class="stat green"><div class="n">${secTasks('done').filter(x=>x.date===t).length}</div><div class="t">已完成</div></div>
         <div class="stat blue"><div class="n">${pendTasks.length}</div><div class="t">待完成</div></div>
       </div>
+      <div class="section-label" style="margin-top:12px">今日已完成待办（${todosDoneToday.length}）</div>
+      ${miniTodosDone}
     </div>
 
     <div class="card">
@@ -596,17 +607,88 @@ function viewDaily() {
   const done = secTasks('done').sort((a, b) => (b.order || 0) - (a.order || 0));
   const pend = secTasks('pending').sort((a, b) => (a.order || 0) - (b.order || 0));
   const inc = secTasks('incomplete').sort((a, b) => (a.order || 0) - (b.order || 0));
+  const t = todayStr();
+  // 今日已完成的待办事项（自动汇总进当天已完成清单）
+  const todosDoneToday = (STATE.todos || []).filter(x => x.done && x.doneDate === t);
+  const todosDoneHtml = todosDoneToday.length
+    ? todosDoneToday.map(x => `<div class="task done">
+        <div class="box done">✓</div>
+        <div class="txt">${escapeHtml(x.text)}<span class="todo-clock" style="margin-left:6px;opacity:.7">${escapeHtml(x.time || '')}</span></div>
+      </div>`).join('')
+    : '';
   return `
   <div class="card">
-    <div class="card-title"><span class="dot"></span>每日计划 · ${fmtMD(todayStr())}（周${weekdayCn(todayStr())}）</div>
+    <div class="card-title"><span class="dot"></span>每日计划 · ${fmtMD(t)}（周${weekdayCn(t)}）</div>
     ${sectionBlock('今日任务', 'today', today)}
     ${sectionBlock('待完成', 'pending', pend)}
     ${sectionBlock('未完成（逾期未勾选，已自动顺延）', 'incomplete', inc)}
     ${sectionBlock('已完成', 'done', done)}
+    ${todosDoneToday.length ? `<div class="section-label">今日已完成待办（${todosDoneToday.length}）<span class="count">${todosDoneToday.length}</span></div>${todosDoneHtml}` : ''}
     <div class="add-row">
       <input class="input" id="new-task" placeholder="添加一条今日计划…" maxlength="120" />
       <button class="btn" data-act="add-task">添加计划</button>
     </div>
+  </div>`;
+}
+
+/* ---------- 待办事项 ---------- */
+function viewTodos() {
+  const t = todayStr();
+  const open = (STATE.todos || []).filter(x => !x.done).sort((a, b) => {
+    return ((a.date||'') + (a.time||'')).localeCompare((b.date||'') + (b.time||''));
+  });
+  const done = (STATE.todos || []).filter(x => x.done).sort((a, b) => (b.doneDate || '').localeCompare(a.doneDate || ''));
+  const openCount = open.length;
+  const todayOpen = open.filter(x => (x.date||'') <= t).length;
+
+  // 未完成列表
+  const openRows = open.length ? open.map(x => {
+    const overdue = x.date && x.date < t;
+    const today = x.date === t;
+    return `<div class="todo-row ${x.done ? 'done' : ''} ${overdue ? 'overdue' : ''}">
+      <div class="box ${x.done ? 'done' : ''}" data-act="toggle-todo" data-id="${x.id}">${x.done ? '✓' : ''}</div>
+      <div class="todo-main">
+        <div class="todo-text">${escapeHtml(x.text)}</div>
+        <div class="todo-time">
+          <span class="todo-date">📅 ${escapeHtml(x.date || '未设日期')}</span>
+          ${x.time ? `<span class="todo-clock">⏰ ${escapeHtml(x.time)}</span>` : ''}
+          ${overdue ? '<span class="todo-badge overdue">已逾期</span>' : ''}
+          ${today ? '<span class="todo-badge today">今天</span>' : ''}
+        </div>
+      </div>
+      <button class="mini-btn" data-act="edit-todo" data-id="${x.id}" title="编辑">✎</button>
+      <button class="mini-btn" data-act="del-todo" data-id="${x.id}" title="删除">✕</button>
+    </div>`;
+  }).join('') : '<div class="empty">🎉 没有待办事项了，添加一个吧</div>';
+
+  // 已完成列表（含自动汇总进当天已完成）
+  const doneRows = done.length ? done.map(x => `
+    <div class="todo-row done">
+      <div class="box done" data-act="toggle-todo" data-id="${x.id}">✓</div>
+      <div class="todo-main">
+        <div class="todo-text">${escapeHtml(x.text)}</div>
+        <div class="todo-time">✅ ${escapeHtml((x.doneDate||'') === t ? '今天完成' : (x.doneDate||'') + ' 完成')}${x.date ? ` · 原定 ${escapeHtml(x.date)}` : ''}</div>
+      </div>
+      <button class="mini-btn" data-act="del-todo" data-id="${x.id}" title="删除">✕</button>
+    </div>`).join('') : '<div class="empty">还没有完成的待办</div>';
+
+  return `
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--blue-500)"></span>待办事项</div>
+    <p class="hint">为未来的事情设定日期与时间，完成后点勾，它会自动汇总进「当天已完成任务清单」。</p>
+
+    <div class="add-row">
+      <input class="input" id="new-todo" placeholder="要完成什么事…" maxlength="120" style="flex:1;min-width:160px"/>
+      <input class="input" id="todo-date" type="date" style="max-width:160px"/>
+      <input class="input" id="todo-time" type="time" style="max-width:120px"/>
+      <button class="btn pink" data-act="add-todo">＋添加待办</button>
+    </div>
+
+    <div class="section-label">待完成（${openCount}）<span class="count">${todayOpen} 项今天到期</span></div>
+    ${openRows}
+
+    <div class="section-label" style="margin-top:16px">已完成（${done.length}）</div>
+    ${doneRows}
   </div>`;
 }
 
@@ -1685,6 +1767,36 @@ document.addEventListener('click', e => {
     save(); render(); return;
   }
 
+  // 待办事项
+  if (act === 'add-todo') {
+    const inp = $('#new-todo'); const v = inp.value.trim();
+    if (!v) { inp.focus(); return; }
+    const date = $('#todo-date').value || '';
+    const time = $('#todo-time').value || '';
+    STATE.todos.push({ id: uid(), text: v, date, time, done: false, doneDate: '' });
+    save(); render(); return;
+  }
+  if (act === 'toggle-todo') {
+    const td = (STATE.todos || []).find(x => x.id === id); if (!td) return;
+    td.done = !td.done;
+    td.doneDate = td.done ? todayStr() : '';
+    save(); render(); return;
+  }
+  if (act === 'del-todo') {
+    STATE.todos = (STATE.todos || []).filter(x => x.id !== id); save(); render(); return;
+  }
+  if (act === 'edit-todo') {
+    const td = (STATE.todos || []).find(x => x.id === id); if (!td) return;
+    const text = prompt('修改待办内容：', td.text);
+    if (text === null) return;
+    td.text = text.trim() || td.text;
+    const nd = prompt('修改日期（格式 YYYY-MM-DD，留空表示不设）：', td.date || '');
+    if (nd !== null) td.date = nd.trim();
+    const nt = prompt('修改时间（格式 HH:MM，留空表示不设）：', td.time || '');
+    if (nt !== null) td.time = nt.trim();
+    save(); render(); return;
+  }
+
   // 大学来访
   if (act === 'import-visits') {
     // 从预设重新导入（幂等：按国家合并，保留已设置的来访信息）
@@ -2318,6 +2430,7 @@ document.addEventListener('input', e => {
 // 回车快速添加
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'new-task') { e.preventDefault(); document.querySelector('[data-act="add-task"]').click(); }
+  if (e.key === 'Enter' && e.target.id === 'new-todo') { e.preventDefault(); document.querySelector('[data-act="add-todo"]').click(); }
   if (e.key === 'Enter' && e.target.id === 'new-student') { e.preventDefault(); document.querySelector('[data-act="add-student"]').click(); }
   if (e.key === 'Enter' && e.target.id === 'dl-name') { e.preventDefault(); document.querySelector('[data-act="add-deadline"]').click(); }
   if (e.key === 'Enter' && e.target.id === 'club-name') { e.preventDefault(); document.querySelector('[data-act="add-club"]').click(); }

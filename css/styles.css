@@ -481,6 +481,24 @@ body.widget .widget-view {
 .bk-tips { display: flex; flex-direction: column; gap: 8px; }
 .bk-tip { background: #F6FAFF; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--ink); }
 
+/* ===== 待办事项 ===== */
+.todo-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px;
+  background: #fff; border: 1px solid var(--line); margin-bottom: 8px; }
+.todo-row.overdue { border-color: #FFD9E0; background: #FFF6F8; }
+.todo-row.done { opacity: .6; }
+.todo-main { flex: 1; min-width: 0; }
+.todo-text { font-weight: 700; font-size: 14px; }
+.todo-row.done .todo-text { text-decoration: line-through; color: var(--muted); }
+.todo-time { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; font-size: 12px; color: var(--ink-soft); }
+.todo-date, .todo-clock { background: var(--blue-50); padding: 1px 7px; border-radius: 8px; }
+.todo-badge { font-size: 11px; font-weight: 800; padding: 1px 8px; border-radius: 12px; }
+.todo-badge.overdue { background: #FFE3E9; color: var(--red); }
+.todo-badge.today { background: var(--blue-100); color: var(--blue-600); }
+.todo-row .box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--blue-300); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 900; color: #fff; background: #fff; flex: 0 0 auto; }
+.todo-row .box.done { background: var(--green); border-color: var(--green); }
+
+
 
 /* ===== 后申请追踪 ===== */
 .school-done { border-color: var(--green); background: #F2FBF6; }
