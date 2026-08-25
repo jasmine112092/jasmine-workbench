@@ -1,5 +1,5 @@
 /* Jasmine的工作台 — Service Worker（离线缓存） */
-const CACHE = 'jasmine-workbench-v25';
+const CACHE = 'jasmine-workbench-v26';
 const SHELL = [
   './',
   './index.html',

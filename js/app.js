@@ -48,6 +48,7 @@ let editingActivity = null;      // 正在编辑的活动 id
 let editingGradeActivity = null; // 正在编辑的年级活动 id
 let clubWeekPage = {};           // 社团周次分页：clubId -> 当前页码(从0开始)
 const CLUB_WEEKS_PER_PAGE = 3;   // 每屏最多显示的周次列数（兼顾桌面与移动端）
+const MAX_FILE_BYTES = 1024 * 1024; // 单个沟通文件上限 1MB（受 localStorage 容量限制）
 
 function makeSchool(name, progress) {
   return {
@@ -126,7 +127,7 @@ function load() {
   } catch (e) { STATE = defaultState(); }
   rollover();
 }
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch (e) {} }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); return true; } catch (e) { return false; } }
 
 /* ---------- 大学来访 · 各校招生官 ---------- */
 // 预设数据（从 Excel 导入，见 js/visits-data.js 的 window.VISITS_PRESET）
@@ -747,6 +748,15 @@ let visitDashOpen = false;
 const collapsedVisits = {}; // countryId -> true(折叠)
 
 function visitSchoolRow(s, g) {
+  // 已上传文件列表
+  const files = (s.files || []).map(f => `
+    <div class="vf-item">
+      <span class="vf-ico">${fileIcon(f.type)}</span>
+      <a class="vf-name" href="${f.data}" download="${escapeHtml(f.name)}" title="点击下载查看">${escapeHtml(f.name)}</a>
+      <span class="vf-size">${fmtSize(f.size)}</span>
+      <button class="mini-btn vf-del" data-act="del-visit-file" data-cid="${g.id}" data-sid="${s.id}" data-fid="${f.id}" title="删除文件">✕</button>
+    </div>`).join('');
+
   return `<div class="visit-school ${s.visiting ? 'visiting' : ''}">
     <div class="visit-main">
       <div class="visit-name">🏫 ${escapeHtml(s.name)}</div>
@@ -769,7 +779,37 @@ function visitSchoolRow(s, g) {
       </div>` : ''}
       <button class="mini-btn" data-act="del-visit" data-cid="${g.id}" data-sid="${s.id}" title="删除该院校">✕</button>
     </div>
+    <div class="visit-files">
+      <div class="vf-head">
+        <span class="vf-title">📁 沟通文件 <span class="vf-count">${files ? (s.files || []).length : 0}</span></span>
+        <label class="vf-upload btn ghost">
+          ＋上传文件
+          <input type="file" multiple data-act="upload-visit-file" data-cid="${g.id}" data-sid="${s.id}" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.xls,.xlsx,.ppt,.pptx,.csv,.md"/>
+        </label>
+        <p class="vf-hint">支持 PDF / Word / 图片 / Excel / PPT 等，保存在本机，可随时下载查看。</p>
+      </div>
+      ${files ? `<div class="vf-list">${files}</div>` : '<div class="vf-empty">还没有上传文件</div>'}
+    </div>
   </div>`;
+}
+// 根据文件类型返回图标
+function fileIcon(type) {
+  const t = (type || '').toLowerCase();
+  if (t.includes('pdf')) return '📕';
+  if (t.includes('word') || t.includes('doc')) return '📘';
+  if (t.includes('excel') || t.includes('sheet') || t.includes('xls')) return '📗';
+  if (t.includes('powerpoint') || t.includes('ppt')) return '📙';
+  if (t.includes('image') || t.includes('jpg') || t.includes('jpeg') || t.includes('png') || t.includes('gif')) return '🖼️';
+  if (t.includes('zip') || t.includes('rar') || t.includes('7z')) return '🗜️';
+  if (t.includes('text') || t.includes('txt') || t.includes('md')) return '📄';
+  return '📄';
+}
+// 文件大小格式化
+function fmtSize(n) {
+  n = Number(n) || 0;
+  if (n < 1024) return n + ' B';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1024 / 1024).toFixed(1) + ' MB';
 }
 
 // 来访汇总看板：本学期来访的国家、大学数、按国家与月份统计
@@ -1927,7 +1967,8 @@ document.addEventListener('click', e => {
               name: ps.name, officer: ps.officer || '', wechat: ps.wechat || '', email: ps.email || '',
               visiting: old ? !!old.visiting : false,
               visitDate: old ? (old.visitDate || '') : '',
-              visitTime: old ? (old.visitTime || '') : ''
+              visitTime: old ? (old.visitTime || '') : '',
+              files: old && Array.isArray(old.files) ? old.files : []
             };
           })
         };
@@ -1997,6 +2038,14 @@ document.addEventListener('click', e => {
     const s = g.schools.find(x => x.id === el.dataset.sid); if (!s) return;
     s.visiting = el.checked;
     if (!s.visiting) { s.visitDate = ''; s.visitTime = ''; }
+    save(); render(); return;
+  }
+  if (act === 'del-visit-file') {
+    const g = (STATE.visits || []).find(x => x.id === el.dataset.cid); if (!g) return;
+    const s = g.schools.find(x => x.id === el.dataset.sid); if (!s) return;
+    const f = (s.files || []).find(x => x.id === el.dataset.fid); if (!f) return;
+    if (!confirm('确定删除文件「' + f.name + '」吗？')) return;
+    s.files = (s.files || []).filter(x => x.id !== el.dataset.fid);
     save(); render(); return;
   }
 
@@ -2452,6 +2501,43 @@ document.addEventListener('change', e => {
     const sc = (c.schools || []).find(x => x.id === el.dataset.schid); if (!sc) return;
     const m = (sc.materials || []).find(x => x.id === el.dataset.mid); if (!m) return;
     m.status = el.value; save(); render();
+    return;
+  }
+  // 大学来访：上传沟通文件（支持 PDF / Word / 图片 等）
+  if (e.target && e.target.dataset.act === 'upload-visit-file') {
+    const g = (STATE.visits || []).find(x => x.id === e.target.dataset.cid); if (!g) return;
+    const s = g.schools.find(x => x.id === e.target.dataset.sid); if (!s) return;
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (!files.length) return;
+    if (!Array.isArray(s.files)) s.files = [];
+    let pending = files.length;
+    let failed = 0;
+    let tooBig = 0;
+    files.forEach(file => {
+      if (file.size > MAX_FILE_BYTES) { tooBig++; pending--; if (pending <= 0) finishUpload(tooBig, failed, failed || tooBig); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        s.files.push({
+          id: uid(),
+          name: file.name || '未命名文件',
+          type: file.type || '',
+          size: file.size || 0,
+          data: reader.result || ''
+        });
+        pending--;
+        if (pending <= 0) finishUpload(tooBig, failed, failed || tooBig);
+      };
+      reader.onerror = () => { failed++; pending--; if (pending <= 0) finishUpload(tooBig, failed, failed || tooBig); };
+      reader.readAsDataURL(file);
+    });
+    function finishUpload(big, fail, any) {
+      const saved = save(); render();
+      if (fail) toast('❌ ' + fail + ' 个文件上传失败');
+      else if (!saved) toast('⚠️ 本地存储空间已满，文件未能保存，请删除部分文件或备份后清理数据');
+      else if (big) toast('⚠️ ' + big + ' 个文件超过 1MB 限制未上传');
+      else toast('✅ ' + files.length + ' 个文件已保存');
+    }
     return;
   }
 });
